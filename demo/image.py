@@ -14,46 +14,21 @@ from keras import backend as K
 from keras.layers import Average
 from keras.models import Model
 
-def results_mtcnn(detected, input_img, faces, ad, img_size, img_w, img_h, model):
+def results_mtcnn(input_img, img_size, model):
 
-    if len(detected) > 0:
-        for i, d in enumerate(detected):
-            #x1, y1, x2, y2, w, h = d.left(), d.top(), d.right() + 1, d.bottom() + 1, d.width(), d.height()
-            if d['confidence'] > 0.95: # discuss
-                x1, y1, w, h = d['box']
+    
+    return p_result[0][0], p_result[0][1], p_result[0][2]
 
-                x2 = x1+w
-                y2 = y1+h
-
-                xw1 = max(int(x1 - ad * w), 0)
-                yw1 = max(int(y1 - ad * h), 0)
-                xw2 = min(int(x2 + ad * w), img_w - 1)
-                yw2 = min(int(y2 + ad * h), img_h - 1)
-
-                faces[i, :, :, :] = cv2.resize(
-                    input_img[yw1:yw2 + 1, xw1:xw2 + 1, :], (img_size, img_size))
-                faces[i, :, :, :] = cv2.normalize(
-                    faces[i, :, :, :], None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
-
-                face = np.expand_dims(faces[i, :, :, :], axis=0)
-                p_result = model.predict(face)
-                return p_result[0][0], p_result[0][1], p_result[0][2]
-            else:
-                return 500, 500, 500
-
-    return 404, 404, 404
 
 def main(source, destination):
 
     K.set_learning_phase(0)  # make sure its testing mode
     # face_cascade = cv2.CascadeClassifier('lbpcascade_frontalface_improved.xml')
-    detector = MTCNN()
 
     # Parameters
     img_size = 64
     lambda_local = 1
     ad = 0.6
-    detected = ''  # make this not local variabl
     num_capsule = 3
     dim_capsule = 16
     routings = 2
@@ -117,17 +92,16 @@ def main(source, destination):
         # get video frame
         input_img = cv2.imread(image_path)
 
-        img_h, img_w, _ = np.shape(input_img)
-
         # detect faces using LBP detector
         #gray_img = cv2.cvtColor(input_img, cv2.COLOR_BGR2GRAY)
         # detected = face_cascade.detectMultiScale(gray_img, 1.1)
-        detected = detector.detect_faces(input_img)
 
-        faces = np.empty((len(detected), img_size, img_size, 3))
+        face = cv2.resize(input_img, (img_size, img_size))
+        face = cv2.normalize(face, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
 
-        yaw, pitch, roll = results_mtcnn(detected, input_img, faces, ad, img_size, img_w, img_h, model)
-        result.append([image_path, yaw, pitch, roll])
+        face = np.expand_dims(face, axis=0)
+        p_result = model.predict(face)
+        result.append([path.join(image_path.split('/')[-2], image_path.split('/')[-1]), p_result[0][0], p_result[0][1], p_result[0][2]])
 
     print('Save result file ...')
     np.savetxt(save_file, np.asarray(result), delimiter=' ', fmt='%s')
