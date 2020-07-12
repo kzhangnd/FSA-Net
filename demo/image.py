@@ -4,6 +4,7 @@ import sys
 sys.path.append('..')
 
 import argparse
+import pandas as pd
 import numpy as np
 from math import cos, sin
 # from moviepy.editor import *
@@ -14,11 +15,7 @@ from keras import backend as K
 from keras.layers import Average
 from keras.models import Model
 
-def results_mtcnn(input_img, img_size, model):
-
-    
-    return p_result[0][0], p_result[0][1], p_result[0][2]
-
+from tqdm import tqdm
 
 def main(source, destination):
 
@@ -75,7 +72,7 @@ def main(source, destination):
 
     print('Load image list ...')
     if path.isfile(source):
-        source_list = np.sort(np.loadtxt(source, dtype=np.str))
+        source_list = np.sort(np.asarray(pd.read_csv(source, delimiter=' ', header=None)).flatten())
     else:
         sys.exit('Unable to load image list')
 
@@ -83,13 +80,12 @@ def main(source, destination):
     if not path.exists(destination):
         makedirs(destination)
         print ("Make directory {}!".format(destination))
-    save_file = path.join(destination, 'pose.txt')
+    save_file = path.join(destination, path.split(source)[1]+'_pose.txt')
 
     print('Start detecting pose ...')
 
     result = []
-    for image_path in source_list:
-        # get video frame
+    for image_path in tqdm(source_list):
         input_img = cv2.imread(image_path)
 
         # detect faces using LBP detector
